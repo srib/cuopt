@@ -1989,7 +1989,6 @@ mip_status_t branch_and_bound_t<i_t, f_t>::solve(mip_solution_t<i_t, f_t>& solut
 
   root_relax_soln_.resize(original_lp_.num_rows, original_lp_.num_cols);
 
-
   if (settings_.clique_cuts != 0 && clique_table_ == nullptr) {
     signal_extend_cliques_.store(false, std::memory_order_release);
     typename ::cuopt::linear_programming::mip_solver_settings_t<i_t, f_t>::tolerances_t
@@ -2015,11 +2014,11 @@ mip_status_t branch_and_bound_t<i_t, f_t>::solve(mip_solution_t<i_t, f_t>& solut
                  });
   }
 
-  i_t original_rows                     = original_lp_.num_rows;
-  simplex_solver_settings_t lp_settings = settings_;
-  lp_settings.inside_mip                = 1;
-  lp_settings.scale_columns             = false;
-  lp_settings.concurrent_halt           = get_root_concurrent_halt();
+  i_t original_rows                           = original_lp_.num_rows;
+  simplex_solver_settings_t lp_settings       = settings_;
+  lp_settings.inside_mip                      = 1;
+  lp_settings.scale_columns                   = false;
+  lp_settings.concurrent_halt                 = get_root_concurrent_halt();
   lp_settings.dual_simplex_objective_callback = [this](f_t user_obj) {
     root_lp_current_lower_bound_.store(user_obj);
   };
