@@ -839,11 +839,11 @@ branch_variable_t<i_t> branch_and_bound_t<i_t, f_t>::variable_selection(
       if (settings_.reliability_branching != 0) {
         branch_var = pc_.reliable_variable_selection(node_ptr,
                                                      fractional,
-                                                     solution,
-                                                     settings_,
-                                                     var_types_,
                                                      worker,
+                                                     var_types_,
                                                      exploration_stats_,
+                                                     settings_,
+                                                     node_ptr->lower_bound,
                                                      upper_bound_,
                                                      worker_pool_.num_idle_workers(),
                                                      log);
@@ -2445,6 +2445,7 @@ mip_status_t branch_and_bound_t<i_t, f_t>::solve(mip_solution_t<i_t, f_t>& solut
   set_uninitialized_steepest_edge_norms(original_lp_, basic_list, edge_norms_);
 
   pc_.resize(original_lp_.num_cols);
+  original_lp_.A.transpose(pc_.AT);
   {
     raft::common::nvtx::range scope_sb("BB::strong_branching");
     strong_branching<i_t, f_t>(original_problem_,
