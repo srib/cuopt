@@ -69,6 +69,8 @@ objective_change_estimate_t<f_t> single_pivot_objective_change_estimate(
   f_t& work_estimate)
 {
   // Compute the objective estimate for the down and up branches of variable j
+  assert(variable_j >= 0);
+  assert(basic_j >= 0);
 
   // Down branch
   i_t direction = -1;
@@ -228,6 +230,8 @@ void initialize_pseudo_costs_with_estimate(const lp_problem_t<i_t, f_t>& lp,
 
   for (i_t k = 0; k < fractional.size(); k++) {
     const i_t j = fractional[k];
+    assert(j >= 0);
+
     objective_change_estimate_t<f_t> estimate =
       single_pivot_objective_change_estimate(lp,
                                              settings,
@@ -290,18 +294,18 @@ void strong_branch_helper(i_t start,
       child_settings.time_limit      = std::max(0.0, settings.time_limit - elapsed_time);
       child_settings.iteration_limit = 200;
 
-      // if (std::isfinite(upper_bound)) {
-      child_settings.cut_off = upper_bound + settings.dual_tol;
-      // } else {
-      //   child_settings.cut_off = 0;
-      //   for (i_t i = 0; i < original_lp.num_cols; ++i) {
-      //     if (original_lp.objective[i] < 0) {
-      //       child_settings.cut_off += original_lp.objective[i] * child_problem.upper[i];
-      //     } else if (original_lp.objective[i] > 0) {
-      //       child_settings.cut_off += original_lp.objective[i] * child_problem.lower[i];
-      //     }
-      //   }
-      // }
+      if (std::isfinite(upper_bound)) {
+        child_settings.cut_off = upper_bound + settings.dual_tol;
+      } else {
+        child_settings.cut_off = 0;
+        for (i_t i = 0; i < original_lp.num_cols; ++i) {
+          if (original_lp.objective[i] < 0) {
+            child_settings.cut_off += original_lp.objective[i] * child_problem.upper[i];
+          } else if (original_lp.objective[i] > 0) {
+            child_settings.cut_off += original_lp.objective[i] * child_problem.lower[i];
+          }
+        }
+      }
 
       lp_solution_t<i_t, f_t> solution(original_lp.num_rows, original_lp.num_cols);
       i_t iter                               = 0;
@@ -321,7 +325,8 @@ void strong_branch_helper(i_t start,
       if (status == dual::status_t::DUAL_UNBOUNDED) {
         // LP was infeasible
         obj = std::numeric_limits<f_t>::infinity();
-      } else if (status == dual::status_t::OPTIMAL || status == dual::status_t::ITERATION_LIMIT) {
+      } else if (status == dual::status_t::OPTIMAL || status == dual::status_t::ITERATION_LIMIT ||
+                 status == dual::status_t::CUTOFF) {
         obj = compute_objective(child_problem, solution.x);
       } else {
         settings.log.debug("Thread id %2d remaining %d variable %d branch %d status %d\n",
@@ -412,18 +417,18 @@ f_t trial_branching(const lp_problem_t<i_t, f_t>& original_lp,
   child_settings.inside_mip      = 2;
   child_settings.scale_columns   = false;
 
-  // if (std::isfinite(upper_bound)) {
-  child_settings.cut_off = upper_bound + settings.dual_tol;
-  // } else {
-  //   child_settings.cut_off = 0;
-  //   for (i_t i = 0; i < original_lp.num_cols; ++i) {
-  //     if (original_lp.objective[i] < 0) {
-  //       child_settings.cut_off += original_lp.objective[i] * child_problem.upper[i];
-  //     } else if (original_lp.objective[i] > 0) {
-  //       child_settings.cut_off += original_lp.objective[i] * child_problem.lower[i];
-  //     }
-  //   }
-  // }
+  if (std::isfinite(upper_bound)) {
+    child_settings.cut_off = upper_bound + settings.dual_tol;
+  } else {
+    child_settings.cut_off = 0;
+    for (i_t i = 0; i < original_lp.num_cols; ++i) {
+      if (original_lp.objective[i] < 0) {
+        child_settings.cut_off += original_lp.objective[i] * child_problem.upper[i];
+      } else if (original_lp.objective[i] > 0) {
+        child_settings.cut_off += original_lp.objective[i] * child_problem.lower[i];
+      }
+    }
+  }
 
   lp_solution_t<i_t, f_t> solution(original_lp.num_rows, original_lp.num_cols);
   i_t iter                                         = 0;
