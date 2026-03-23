@@ -124,7 +124,7 @@ objective_change_estimate_t<f_t> single_pivot_objective_change_estimate(
     for (i_t j = 0; j < lp.num_cols; j++) {
       dual_residual[j] -= lp.objective[j];
     }
-    matrix_transpose_vector_multiply(lp.A, 1.0, y, 1.0, dual_residual);
+    matrix_transpose_vector_multiply(lp.A, 1.0, lp_solution.y, 1.0, dual_residual);
     f_t dual_residual_norm = vector_norm_inf<i_t, f_t>(dual_residual);
     settings.log.printf("Dual residual norm: %e\n", dual_residual_norm);
   }
@@ -140,7 +140,7 @@ objective_change_estimate_t<f_t> single_pivot_objective_change_estimate(
 #ifdef CHECK_DELTA_OBJ
   f_t delta_obj_check = 0.0;
   for (i_t k = 0; k < delta_y.i.size(); k++) {
-    delta_obj_check += lp.rhs[delta_y.i[k]] * delta_y.lp_solution.x[k];
+    delta_obj_check += lp.rhs[delta_y.i[k]] * delta_y.x[k];
   }
   for (i_t h = 0; h < delta_z_indices.size(); h++) {
     const i_t j = delta_z_indices[h];
