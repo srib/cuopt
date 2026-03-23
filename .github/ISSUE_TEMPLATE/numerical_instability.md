@@ -1,13 +1,13 @@
 ---
-name: "Numerical instability"
-about: "Report numerical instability (e.g., NaNs/Infs, ill-conditioning, tolerance or scaling issues)"
-title: "[NUMERICAL_INSTABILITY]"
-labels: "? - Needs Triage, numerical instability"
+name: "Numerical issues"
+about: "Report numerical issues (e.g., NaNs/Infs, ill-conditioning, tolerance or scaling issues)"
+title: "[NUMERICAL_ISSUES]"
+labels: "? - Needs Triage, numerical issues"
 assignees: ''
 
 ---
 
-**Describe the instability**
+**Describe the numerical issue**
 A clear description of the numerical problem (e.g., NaN/Inf values, unexpected divergence, extreme sensitivity to small input changes).
 
 **Steps / minimal reproduction**
