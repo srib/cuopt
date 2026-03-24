@@ -407,7 +407,7 @@ struct reliability_branching_settings_t {
   // Estimate the objective change of each fractional variable
   // using a single pivot of dual simplex. Then rank the candidates
   // based on this estimation.
-  bool rank_candidates_with_dual_pivot = false;
+  bool rank_candidates_with_dual_pivot = true;
 };
 
 template <typename i_t, typename f_t>
