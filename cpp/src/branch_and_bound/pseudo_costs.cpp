@@ -398,10 +398,8 @@ f_t trial_branching(const lp_problem_t<i_t, f_t>& original_lp,
                     f_t branch_var_lower,
                     f_t branch_var_upper,
                     f_t upper_bound,
-                    i_t bnb_lp_iter_per_node,
                     f_t start_time,
-                    i_t upper_max_lp_iter,
-                    i_t lower_max_lp_iter,
+                    i_t iter_limit,
                     omp_atomic_t<int64_t>& total_lp_iter)
 {
   lp_problem_t child_problem      = original_lp;
@@ -411,9 +409,7 @@ f_t trial_branching(const lp_problem_t<i_t, f_t>& original_lp,
   const bool initialize_basis                        = false;
   simplex_solver_settings_t<i_t, f_t> child_settings = settings;
   child_settings.set_log(false);
-  i_t lp_iter_upper              = upper_max_lp_iter;
-  i_t lp_iter_lower              = lower_max_lp_iter;
-  child_settings.iteration_limit = std::clamp(bnb_lp_iter_per_node, lp_iter_lower, lp_iter_upper);
+  child_settings.iteration_limit = iter_limit;
   child_settings.inside_mip      = 2;
   child_settings.scale_columns   = false;
 
@@ -439,7 +435,7 @@ f_t trial_branching(const lp_problem_t<i_t, f_t>& original_lp,
   basis_update_mpf_t<i_t, f_t> child_basis_factors = basis_factors;
 
   // Only refactor the basis if we encounter numerical issues.
-  child_basis_factors.set_refactor_frequency(upper_max_lp_iter);
+  child_basis_factors.set_refactor_frequency(iter_limit);
 
   dual::status_t status = dual_phase2_with_advanced_basis(2,
                                                           0,
@@ -821,11 +817,9 @@ i_t pseudo_costs_t<i_t, f_t>::reliable_variable_selection(
   i_t num_initialized_up;
   f_t pseudo_cost_down_avg;
   f_t pseudo_cost_up_avg;
-
   lp_solution_t<i_t, f_t>& leaf_solution = worker->leaf_solution;
 
   initialized(num_initialized_down, num_initialized_up, pseudo_cost_down_avg, pseudo_cost_up_avg);
-
   log.printf("PC: num initialized down %d up %d avg down %e up %e\n",
              num_initialized_down,
              num_initialized_up,
@@ -835,6 +829,9 @@ i_t pseudo_costs_t<i_t, f_t>::reliable_variable_selection(
   const int64_t branch_and_bound_lp_iters = bnb_stats.total_lp_iters;
   const i_t branch_and_bound_lp_iter_per_node =
     bnb_stats.nodes_explored > 0 ? branch_and_bound_lp_iters / bnb_stats.nodes_explored : 0;
+  const i_t iter_limit_per_trial = std::clamp(2 * branch_and_bound_lp_iter_per_node,
+                                              reliability_branching_settings.lower_max_lp_iter,
+                                              reliability_branching_settings.upper_max_lp_iter);
 
   i_t reliable_threshold = settings.reliability_branching;
   if (reliable_threshold < 0) {
@@ -984,10 +981,8 @@ i_t pseudo_costs_t<i_t, f_t>::reliable_variable_selection(
                                 worker->leaf_problem.lower[j],
                                 std::floor(leaf_solution.x[j]),
                                 upper_bound,
-                                branch_and_bound_lp_iter_per_node,
                                 start_time,
-                                reliability_branching_settings.upper_max_lp_iter,
-                                reliability_branching_settings.lower_max_lp_iter,
+                                iter_limit_per_trial,
                                 strong_branching_lp_iter);
 
       if (!std::isnan(obj)) {
@@ -1015,10 +1010,8 @@ i_t pseudo_costs_t<i_t, f_t>::reliable_variable_selection(
                                 std::ceil(leaf_solution.x[j]),
                                 worker->leaf_problem.upper[j],
                                 upper_bound,
-                                branch_and_bound_lp_iter_per_node,
                                 start_time,
-                                reliability_branching_settings.upper_max_lp_iter,
-                                reliability_branching_settings.lower_max_lp_iter,
+                                iter_limit_per_trial,
                                 strong_branching_lp_iter);
 
       if (!std::isnan(obj)) {
