@@ -253,6 +253,27 @@ void initialize_pseudo_costs_with_estimate(const lp_problem_t<i_t, f_t>& lp,
 }
 
 template <typename i_t, typename f_t>
+f_t objective_upper_bound(const lp_problem_t<i_t, f_t>& lp, f_t upper_bound, f_t dual_tol)
+{
+  f_t cut_off = 0;
+
+  if (std::isfinite(upper_bound)) {
+    cut_off = upper_bound + dual_tol;
+  } else {
+    cut_off = 0;
+    for (i_t j = 0; j < lp.num_cols; ++j) {
+      if (lp.objective[j] > 0) {
+        cut_off += lp.objective[j] * lp.upper[j];
+      } else if (lp.objective[j] < 0) {
+        cut_off += lp.objective[j] * lp.lower[j];
+      }
+    }
+  }
+
+  return cut_off;
+}
+
+template <typename i_t, typename f_t>
 void strong_branch_helper(i_t start,
                           i_t end,
                           f_t start_time,
@@ -293,19 +314,8 @@ void strong_branch_helper(i_t start,
       if (elapsed_time > settings.time_limit) { break; }
       child_settings.time_limit      = std::max(0.0, settings.time_limit - elapsed_time);
       child_settings.iteration_limit = 200;
-
-      if (std::isfinite(upper_bound)) {
-        child_settings.cut_off = upper_bound + settings.dual_tol;
-      } else {
-        child_settings.cut_off = 0;
-        for (i_t i = 0; i < original_lp.num_cols; ++i) {
-          if (original_lp.objective[i] < 0) {
-            child_settings.cut_off += original_lp.objective[i] * child_problem.upper[i];
-          } else if (original_lp.objective[i] > 0) {
-            child_settings.cut_off += original_lp.objective[i] * child_problem.lower[i];
-          }
-        }
-      }
+      child_settings.cut_off =
+        objective_upper_bound(child_problem, upper_bound, child_settings.dual_tol);
 
       lp_solution_t<i_t, f_t> solution(original_lp.num_rows, original_lp.num_cols);
       i_t iter                               = 0;
@@ -412,19 +422,8 @@ f_t trial_branching(const lp_problem_t<i_t, f_t>& original_lp,
   child_settings.iteration_limit = iter_limit;
   child_settings.inside_mip      = 2;
   child_settings.scale_columns   = false;
-
-  if (std::isfinite(upper_bound)) {
-    child_settings.cut_off = upper_bound + settings.dual_tol;
-  } else {
-    child_settings.cut_off = 0;
-    for (i_t i = 0; i < original_lp.num_cols; ++i) {
-      if (original_lp.objective[i] < 0) {
-        child_settings.cut_off += original_lp.objective[i] * child_problem.upper[i];
-      } else if (original_lp.objective[i] > 0) {
-        child_settings.cut_off += original_lp.objective[i] * child_problem.lower[i];
-      }
-    }
-  }
+  child_settings.cut_off =
+    objective_upper_bound(child_problem, upper_bound, child_settings.dual_tol);
 
   lp_solution_t<i_t, f_t> solution(original_lp.num_rows, original_lp.num_cols);
   i_t iter                                         = 0;
@@ -652,60 +651,62 @@ void strong_branching(const user_problem_t<i_t, f_t>& original_problem,
       pc.strong_branch_down[k] = obj_down - root_obj;
       pc.strong_branch_up[k]   = obj_up - root_obj;
     }
-  } else if (settings.mip_batch_pdlp_strong_branching == 2) {
-    initialize_pseudo_costs_with_estimate(original_lp,
-                                          settings,
-                                          root_vstatus,
-                                          root_solution,
-                                          basic_list,
-                                          nonbasic_list,
-                                          fractional,
-                                          basis_factors,
-                                          pc);
-
   } else {
     settings.log.printf("Strong branching using %d threads and %ld fractional variables\n",
                         settings.num_threads,
                         fractional.size());
     f_t strong_branching_start_time = tic();
 
+    if (settings.mip_strong_branching_use_pivot_estimation) {
+      initialize_pseudo_costs_with_estimate(original_lp,
+                                            settings,
+                                            root_vstatus,
+                                            root_solution,
+                                            basic_list,
+                                            nonbasic_list,
+                                            fractional,
+                                            basis_factors,
+                                            pc);
+    } else {
 #pragma omp parallel num_threads(settings.num_threads)
-    {
-      i_t n = std::min<i_t>(4 * settings.num_threads, fractional.size());
+      {
+        i_t n = std::min<i_t>(4 * settings.num_threads, fractional.size());
 
-      // Here we are creating more tasks than the number of threads
-      // such that they can be scheduled dynamically to the threads.
+        // Here we are creating more tasks than the number of threads
+        // such that they can be scheduled dynamically to the threads.
 #pragma omp for schedule(dynamic, 1)
-      for (i_t k = 0; k < n; k++) {
-        i_t start = std::floor(k * fractional.size() / n);
-        i_t end   = std::floor((k + 1) * fractional.size() / n);
+        for (i_t k = 0; k < n; k++) {
+          i_t start = std::floor(k * fractional.size() / n);
+          i_t end   = std::floor((k + 1) * fractional.size() / n);
 
-        constexpr bool verbose = false;
-        if (verbose) {
-          settings.log.printf("Thread id %d task id %d start %d end %d. size %d\n",
-                              omp_get_thread_num(),
-                              k,
-                              start,
-                              end,
-                              end - start);
+          constexpr bool verbose = false;
+          if (verbose) {
+            settings.log.printf("Thread id %d task id %d start %d end %d. size %d\n",
+                                omp_get_thread_num(),
+                                k,
+                                start,
+                                end,
+                                end - start);
+          }
+
+          strong_branch_helper(start,
+                               end,
+                               start_time,
+                               original_lp,
+                               settings,
+                               var_types,
+                               fractional,
+                               root_obj,
+                               upper_bound,
+                               root_solution.x,
+                               root_vstatus,
+                               edge_norms,
+                               pc);
         }
-
-        strong_branch_helper(start,
-                             end,
-                             start_time,
-                             original_lp,
-                             settings,
-                             var_types,
-                             fractional,
-                             root_obj,
-                             upper_bound,
-                             root_solution.x,
-                             root_vstatus,
-                             edge_norms,
-                             pc);
       }
+      settings.log.printf("Strong branching completed in %.2fs\n",
+                          toc(strong_branching_start_time));
     }
-    settings.log.printf("Strong branching completed in %.2fs\n", toc(strong_branching_start_time));
   }
 
   pc.update_pseudo_costs_from_strong_branching(fractional, root_solution.x);

@@ -190,6 +190,11 @@ struct simplex_solver_settings_t {
   i_t mip_batch_pdlp_strong_branching{0};  // 0 if not using batch PDLP for strong branching, 1 if
                                            // using batch PDLP for strong branching
 
+  // Instead of using the full dual simplex for solving each trial branch in strong branching,
+  // use just a single pivot from dual simplex to estimate the objective change.
+  // TODO: Need to pass a proper benchmark before it can be enabled.
+  bool mip_strong_branching_use_pivot_estimation = false;
+
   diving_heuristics_settings_t<i_t, f_t> diving_settings;  // Settings for the diving heuristics
 
   // Settings for the reliability branching.
