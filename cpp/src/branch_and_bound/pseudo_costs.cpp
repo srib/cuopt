@@ -657,9 +657,7 @@ void strong_branching(const user_problem_t<i_t, f_t>& original_problem,
                         settings.num_threads,
                         fractional.size());
     f_t strong_branching_start_time = tic();
-    i_t simplex_iteration_limit     = settings.strong_branching_simplex_iteration_limit < 0
-                                        ? 200
-                                        : settings.strong_branching_simplex_iteration_limit;
+    i_t simplex_iteration_limit     = settings.strong_branching_simplex_iteration_limit;
 
     if (simplex_iteration_limit < 1) {
       initialize_pseudo_costs_with_estimate(original_lp,
