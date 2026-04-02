@@ -960,6 +960,19 @@ i_t presolve(const lp_problem_t<i_t, f_t>& original,
       }
     }
 
+    for (i_t j : current_free_variables) {
+      if (problem.lower[j] > -inf && problem.upper[j] < inf) {
+        // We don't need two bounds. Pick the smallest one.
+        if (std::abs(problem.lower[j]) < std::abs(problem.upper[j])) {
+          // Restore the inf in the upper bound. Barrier will not require an additional w variable
+          problem.upper[j] = inf;
+        } else {
+          // Restores the -inf in the lower bound. Barrier will require an additional w variable
+          problem.lower[j] = -inf;
+        }
+      }
+    }
+
     i_t new_free_variables = 0;
     for (i_t j = 0; j < problem.num_cols; j++) {
       if (problem.lower[j] == -inf && problem.upper[j] == inf) { new_free_variables++; }
