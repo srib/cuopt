@@ -846,7 +846,9 @@ branch_variable_t<i_t> branch_and_bound_t<i_t, f_t>::variable_selection(
                                                      settings_,
                                                      upper_bound_,
                                                      worker_pool_.num_idle_workers(),
-                                                     log);
+                                                     log,
+                                                     new_slacks_,
+                                                     original_lp_);
       } else {
         branch_var = pc_.variable_selection(fractional, solution, log);
       }
@@ -2503,10 +2505,10 @@ mip_status_t branch_and_bound_t<i_t, f_t>::solve(mip_solution_t<i_t, f_t>& solut
   original_lp_.A.transpose(pc_.AT);
   {
     raft::common::nvtx::range scope_sb("BB::strong_branching");
-    strong_branching<i_t, f_t>(original_problem_,
-                               original_lp_,
+    strong_branching<i_t, f_t>(original_lp_,
                                settings_,
                                exploration_stats_.start_time,
+                               new_slacks_,
                                var_types_,
                                root_relax_soln_,
                                fractional,

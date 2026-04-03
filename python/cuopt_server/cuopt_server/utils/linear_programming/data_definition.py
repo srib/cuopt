@@ -452,8 +452,15 @@ class SolverConfig(BaseModel):
     )
     mip_batch_pdlp_strong_branching: Optional[int] = Field(
         default=0,
-        description="Set 1 to enable batch PDLP strong branching "
-        "in the MIP solver, 0 to disable.",
+        description="Strong branching mode: 0 = Dual Simplex only, "
+        "1 = cooperative work-stealing (DS + batch PDLP), "
+        "2 = batch PDLP only.",
+    )
+    mip_batch_pdlp_reliability_branching: Optional[int] = Field(
+        default=0,
+        description="Reliability branching mode: 0 = Dual Simplex only, "
+        "1 = cooperative work-stealing (DS + batch PDLP), "
+        "2 = batch PDLP only.",
     )
     num_cpu_threads: Optional[int] = Field(
         default=None,
